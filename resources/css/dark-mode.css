@@ -1,0 +1,9 @@
+/* Dark mode specific enhancements (variables handled via app.css) */
+.dark body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+.dark .bg-white {
+  background-color: var(--color-card);
+}

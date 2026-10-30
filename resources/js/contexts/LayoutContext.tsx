@@ -1,0 +1,93 @@
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { getCookie, setCookie, isDemoMode } from '@/utils/cookies';
+
+export type LayoutPosition = 'left' | 'right';
+
+type LayoutContextType = {
+    position: LayoutPosition;
+    effectivePosition: LayoutPosition;
+    updatePosition: (val: LayoutPosition) => void;
+    isRtl: boolean;
+    saveLayoutPosition: (position: LayoutPosition) => void;
+};
+
+const LayoutContext = createContext<LayoutContextType | undefined>(undefined);
+
+export const LayoutProvider = ({ children }: { children: ReactNode }) => {
+    const [position, setPosition] = useState<LayoutPosition>("right");
+    const [isRtl, setIsRtl] = useState<boolean>(true);
+
+    useEffect(() => {
+        let storedPosition: LayoutPosition | null = null;
+
+        if (isDemoMode()) {
+            storedPosition = getCookie('layoutPosition') as LayoutPosition;
+        } else {
+            const globalSettings = (window as any).page?.props?.globalSettings;
+            storedPosition = globalSettings?.layoutDirection as LayoutPosition;
+        }
+
+        const currentLang = (window as any).initialLocale || (window as any).authUser?.lang || 'ar';
+        const isRtlLang = ['ar', 'he', 'fa', 'ur'].includes(currentLang) || storedPosition === 'right';
+
+        const finalPosition: LayoutPosition = isRtlLang ? 'right' : (storedPosition || 'left');
+        setPosition(finalPosition);
+        setIsRtl(isRtlLang);
+
+        document.documentElement.dir = isRtlLang ? 'rtl' : 'ltr';
+        document.documentElement.setAttribute('dir', isRtlLang ? 'rtl' : 'ltr');
+
+        const handleLanguageChange = (event: CustomEvent) => {
+            const { language, direction } = event.detail || {};
+            const isRtlActive = ['ar', 'he', 'fa', 'ur'].includes(language) || direction === 'right' || direction === 'rtl';
+            document.documentElement.dir = isRtlActive ? 'rtl' : 'ltr';
+            document.documentElement.setAttribute('dir', isRtlActive ? 'rtl' : 'ltr');
+            setPosition(isRtlActive ? 'right' : 'left');
+            setIsRtl(isRtlActive);
+        };
+
+        const handleLayoutDirectionChange = (event: CustomEvent) => {
+            const { direction } = event.detail || {};
+            const isRtlActive = direction === 'right' || direction === 'rtl';
+            document.documentElement.dir = isRtlActive ? 'rtl' : 'ltr';
+            document.documentElement.setAttribute('dir', isRtlActive ? 'rtl' : 'ltr');
+            setPosition(isRtlActive ? 'right' : 'left');
+            setIsRtl(isRtlActive);
+        };
+
+        window.addEventListener('languageChanged', handleLanguageChange as EventListener);
+        window.addEventListener('layoutDirectionChanged', handleLayoutDirectionChange as EventListener);
+
+        return () => {
+            window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
+            window.removeEventListener('layoutDirectionChanged', handleLayoutDirectionChange as EventListener);
+        };
+    }, [(window as any).page?.props?.globalSettings]);
+
+    const updatePosition = (val: LayoutPosition) => {
+        setPosition(val);
+        const rtl = val === 'right';
+        setIsRtl(rtl);
+        document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+        document.documentElement.setAttribute('dir', rtl ? 'rtl' : 'ltr');
+    };
+
+    const saveLayoutPosition = (positionParam?: LayoutPosition) => {
+        const positionToSave = positionParam || position;
+
+        if (isDemoMode()) {
+            setCookie('layoutPosition', positionToSave);
+            setCookie('layoutDirection', positionToSave);
+        }
+    };
+
+    const effectivePosition: LayoutPosition = position;
+
+    return <LayoutContext.Provider value={{ position, effectivePosition, updatePosition, saveLayoutPosition, isRtl }}>{children}</LayoutContext.Provider>;
+};
+
+export const useLayout = () => {
+    const context = useContext(LayoutContext);
+    if (!context) throw new Error('useLayout must be used within LayoutProvider');
+    return context;
+};

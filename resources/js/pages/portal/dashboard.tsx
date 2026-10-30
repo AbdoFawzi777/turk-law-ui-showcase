@@ -1,0 +1,20 @@
+import { Link } from '@inertiajs/react';
+import { ArrowLeft, Banknote, BriefcaseBusiness, FileText, MessageSquareText } from 'lucide-react';
+import { PortalLayout } from '@/components/portal-layout';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+const status: Record<string, string> = { open: 'مفتوح', active: 'نشط', closed: 'مغلق', pending: 'قيد المتابعة', paid: 'مدفوعة', overdue: 'متأخرة', draft: 'مسودة', sent: 'مرسلة', partial_paid: 'مدفوعة جزئيًا' };
+export default function PortalDashboard({ portalAccount, matters = [], updates = [], invoices = [], sharedDocumentsCount = 0 }: any) {
+    return <PortalLayout title="ملخص حسابك" account={portalAccount}>
+        <div className="grid gap-4 sm:grid-cols-3">
+            {[[BriefcaseBusiness, 'الملفات', matters.length], [FileText, 'المستندات المشتركة', sharedDocumentsCount], [Banknote, 'الفواتير', invoices.length]].map(([Icon, label, value]: any) => <Card key={label}><CardContent className="flex items-center gap-4 p-5"><span className="rounded-lg bg-emerald-50 p-3 text-emerald-700"><Icon className="h-5 w-5" /></span><div><p className="text-sm text-muted-foreground">{label}</p><strong className="text-2xl">{value}</strong></div></CardContent></Card>)}
+        </div>
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            <Card><CardHeader><CardTitle>الملفات القانونية</CardTitle></CardHeader><CardContent className="space-y-3">{matters.map((matter: any) => <Link key={matter.id} href={route('portal.matters.show', matter.id)} className="flex items-center justify-between rounded-lg border p-4 hover:bg-slate-50"><div><strong>{matter.title}</strong><p className="text-xs text-muted-foreground">{matter.matter_number || 'دون رقم'}</p></div><span className="flex items-center gap-2"><Badge variant="outline">{status[matter.status] || matter.status}</Badge><ArrowLeft className="h-4 w-4" /></span></Link>)}{!matters.length && <p className="py-8 text-center text-sm text-muted-foreground">لا توجد ملفات متاحة للعرض حاليًا.</p>}</CardContent></Card>
+            <Card><CardHeader><CardTitle>آخر التحديثات</CardTitle></CardHeader><CardContent className="space-y-3">{updates.map((update: any) => <article key={update.id} className="rounded-lg border p-4"><div className="flex items-center gap-2"><MessageSquareText className="h-4 w-4 text-emerald-700" /><strong>{update.title}</strong></div><p className="mt-2 text-sm leading-7 text-muted-foreground">{update.summary}</p><time className="text-xs text-muted-foreground">{new Date(update.update_date || update.published_at).toLocaleDateString('ar-EG')}</time></article>)}{!updates.length && <p className="py-8 text-center text-sm text-muted-foreground">لا توجد تحديثات منشورة.</p>}</CardContent></Card>
+        </div>
+        <Card className="mt-6"><CardHeader className="flex-row items-center justify-between"><CardTitle>الفواتير</CardTitle><Button asChild variant="outline" size="sm"><Link href={route('portal.documents.index')}>المستندات المشتركة</Link></Button></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[600px] text-sm"><thead><tr className="border-b text-right text-muted-foreground"><th className="p-3">رقم الفاتورة</th><th className="p-3">الإجمالي</th><th className="p-3">المتبقي</th><th className="p-3">الاستحقاق</th><th className="p-3">الحالة</th></tr></thead><tbody>{invoices.map((invoice: any) => <tr key={invoice.id} className="border-b"><td className="p-3">{invoice.invoice_number}</td><td className="p-3">{invoice.total_amount}</td><td className="p-3">{invoice.balance_amount}</td><td className="p-3">{invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('ar-EG') : '—'}</td><td className="p-3"><Badge variant="outline">{status[invoice.status] || invoice.status}</Badge></td></tr>)}</tbody></table></div>{!invoices.length && <p className="py-8 text-center text-sm text-muted-foreground">لا توجد فواتير متاحة.</p>}</CardContent></Card>
+    </PortalLayout>;
+}

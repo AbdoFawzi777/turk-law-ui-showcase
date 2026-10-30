@@ -1,0 +1,29 @@
+import { useState } from 'react';
+import { router, usePage } from '@inertiajs/react';
+import { ArrowLeft, GitBranch, Plus } from 'lucide-react';
+import { PageTemplate } from '@/components/page-template';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { hasPermission } from '@/utils/authorization';
+import { useTranslation } from 'react-i18next';
+
+export default function PartyShow() {
+  const { t } = useTranslation();
+  const { auth, party, availableParties = [] } = usePage().props as any;
+  const permissions = auth?.permissions || [];
+  const canManage = ['PARTY_RELATIONSHIP_MANAGE', 'manage-party-relationships', 'manage-parties'].some((permission) => hasPermission(permissions, permission));
+  const [form, setForm] = useState<any>({ related_party_id: '', relationship_type: '', direction: 'outbound', notes: '' });
+  const submit = (event: React.FormEvent) => { event.preventDefault(); router.post(route('parties.relationships.store', party.id), form, { onSuccess: () => setForm({ related_party_id: '', relationship_type: '', direction: 'outbound', notes: '' }) }); };
+  const relationshipRows = [...(party.relationships || []).map((row: any) => ({ ...row, other: row.related_party, view: 'outbound' })), ...(party.reverse_relationships || []).map((row: any) => ({ ...row, other: row.party, view: 'inbound' }))];
+
+  return <PageTemplate title={party.legal_name || party.name} description={t('Party profile and relationship context.')} url={`/parties/${party.id}`} breadcrumbs={[{ title: t('Dashboard'), href: route('dashboard') }, { title: t('Parties'), href: route('parties.index') }, { title: party.legal_name || party.name }]} actions={[{ label: t('Back'), icon: <ArrowLeft />, variant: 'outline', onClick: () => router.get(route('parties.index')) }]}>
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3"><Card className="md:col-span-2"><CardHeader><CardTitle>{t('Identity')}</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><div><p className="text-xs text-muted-foreground">{t('Reference')}</p><p className="font-mono text-sm">{party.party_reference}</p></div><div><p className="text-xs text-muted-foreground">{t('Kind')}</p><p>{party.party_kind}</p></div><div><p className="text-xs text-muted-foreground">{t('Email')}</p><p>{party.email || '—'}</p></div><div><p className="text-xs text-muted-foreground">{t('Phone')}</p><p>{party.phone || '—'}</p></div><div><p className="text-xs text-muted-foreground">{t('Commercial registration')}</p><p>{party.commercial_registration_number || '—'}</p></div><div><p className="text-xs text-muted-foreground">{t('Status')}</p><p>{party.status}</p></div></CardContent></Card><Card><CardHeader><CardTitle>{t('Connected clients')}</CardTitle></CardHeader><CardContent>{(party.clients || []).length ? party.clients.map((client: any) => <div key={client.id} className="border-b py-2 last:border-0"><p className="font-medium">{client.legal_name || client.name}</p><p className="font-mono text-xs text-muted-foreground">{client.reference_number || client.client_id}</p></div>) : <p className="text-sm text-muted-foreground">{t('No clients linked.')}</p>}</CardContent></Card></div>
+      <Card><CardHeader className="flex-row items-center gap-2"><GitBranch className="h-4 w-4 text-primary" /><CardTitle>{t('Relationships')}</CardTitle></CardHeader><CardContent className="space-y-4">{canManage && <form onSubmit={submit} className="grid gap-3 rounded-lg border bg-muted/20 p-4 md:grid-cols-4"><div className="space-y-1 md:col-span-2"><Label>{t('Related party')}</Label><select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={form.related_party_id} onChange={(e) => setForm({ ...form, related_party_id: e.target.value })} required><option value="">{t('Select party')}</option>{availableParties.map((item: any) => <option key={item.id} value={item.id}>{item.legal_name || item.name} · {item.party_reference}</option>)}</select></div><div className="space-y-1"><Label>{t('Relationship')}</Label><Input value={form.relationship_type} onChange={(e) => setForm({ ...form, relationship_type: e.target.value })} placeholder={t('e.g. director')} required /></div><div className="space-y-1"><Label>{t('Direction')}</Label><select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value })}><option value="outbound">{t('Outbound')}</option><option value="inbound">{t('Inbound')}</option><option value="bidirectional">{t('Bidirectional')}</option></select></div><div className="flex justify-end md:col-span-4"><Button type="submit"><Plus />{t('Add relationship')}</Button></div></form>}
+        {relationshipRows.length ? <div className="divide-y">{relationshipRows.map((row: any) => <div key={`${row.id}-${row.view}`} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{row.other?.legal_name || row.other?.name || '—'}</p><p className="text-xs text-muted-foreground">{row.relationship_type} · {row.view === 'outbound' ? t('Outbound from this party') : t('Inbound to this party')} · {row.is_active ? t('Active') : t('Inactive')}</p>{row.notes && <p className="mt-1 text-sm text-muted-foreground">{row.notes}</p>}</div>{row.is_active && canManage && row.view === 'outbound' && <Button size="sm" variant="outline" onClick={() => router.delete(route('parties.relationships.destroy', [party.id, row.id]))}>{t('Deactivate')}</Button>}</div>)}</div> : <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">{t('No relationships recorded yet.')}</div>}
+      </CardContent></Card>
+    </div>
+  </PageTemplate>;
+}
